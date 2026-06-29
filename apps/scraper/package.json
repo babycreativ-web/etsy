@@ -12,7 +12,9 @@
     "@etsy/database": "*",
     "bullmq": "^5.8.0",
     "dotenv": "^16.4.5",
-    "playwright": "^1.42.1"
+    "playwright": "^1.42.1",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",

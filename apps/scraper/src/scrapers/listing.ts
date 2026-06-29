@@ -1,11 +1,20 @@
-import { chromium } from 'playwright';
+import { chromium } from 'playwright-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { prisma } from '@etsy/database';
 
+// Hook up stealth plugin
+chromium.use(StealthPlugin());
+
 export async function scrapeListing(listingId: string): Promise<void> {
-  console.log(`[Scraper] Starting Playwright crawler for listing ID: ${listingId}`);
+  console.log(`[Scraper] Starting Playwright crawler (Stealth Mode) for listing ID: ${listingId}`);
   
   const browser = await chromium.launch({
     headless: true,
+    args: [
+      '--disable-blink-features=AutomationControlled',
+      '--no-sandbox',
+      '--disable-setuid-sandbox'
+    ]
   });
   
   try {
