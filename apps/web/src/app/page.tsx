@@ -191,6 +191,11 @@ export default function Home() {
   const [shops, setShops] = useState<any[]>(MOCK_SHOPS);
   const [listings, setListings] = useState<any[]>(MOCK_LISTINGS);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     // Attempt connection to the NestJS API server
@@ -323,6 +328,14 @@ export default function Home() {
   const totalSales = shops.reduce((acc, curr) => acc + curr.salesCount, 0);
   const totalRevenue = shops.reduce((acc, curr) => acc + curr.estimatedRevenue, 0);
   const averageSeo = +(shops.reduce((acc, curr) => acc + curr.seoScore, 0) / shops.length).toFixed(1);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-[#0d0e12] flex items-center justify-center text-slate-500 text-xs">
+        Loading EHunt Analyzer...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0d0e12] text-[#f1f2f6] flex flex-col font-sans">
