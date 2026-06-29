@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: etsy-postgres
+    environment:
+      POSTGRES_USER: etsy_user
+      POSTGRES_PASSWORD: etsy_password
+      POSTGRES_DB: etsy_intelligence
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - etsy-network
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: etsy-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    networks:
+      - etsy-network
+    restart: always
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    container_name: etsy-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    networks:
+      - etsy-network
+    restart: always
+
+volumes:
+  pgdata:
+  redisdata:
+  esdata:
+
+networks:
+  etsy-network:
+    driver: bridge

@@ -1,0 +1,274 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum SubscriptionTier {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum AlertType {
+  PRICE_DROP
+  OUT_OF_STOCK
+  NEW_LISTING
+  SHOP_SALES_SPIKE
+  REVIEW_RATING_DROP
+}
+
+model User {
+  id               String           @id @default(uuid())
+  email            String           @unique
+  passwordHash     String?
+  name             String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  subscriptionTier SubscriptionTier @default(FREE)
+  stripeCustomerId String?          @unique
+  stripeSubscriptionId String?      @unique
+  subscriptionActive   Boolean      @default(false)
+  
+  // Relations
+  trackedShops     TrackedShop[]
+  trackedListings  TrackedListing[]
+  alerts           Alert[]
+  searchHistories  SearchHistory[]
+  reports          Report[]
+}
+
+model Shop {
+  id                 String           @id // Etsy Shop ID
+  name               String           @unique
+  title              String?
+  url                String
+  logoUrl            String?
+  bannerUrl          String?
+  ownerName          String?
+  country            String?
+  creationDate       DateTime?
+  isStarSeller       Boolean          @default(false)
+  rating             Float            @default(0.0)
+  reviewsCount       Int              @default(0)
+  favoritesCount     Int              @default(0)
+  salesCount         Int              @default(0)
+  estimatedRevenue   Float            @default(0.0)
+  activeListingsCount Int             @default(0)
+  inactiveListingsCount Int           @default(0)
+  
+  // Analytics Scores
+  seoScore           Float            @default(0.0)
+  competitionScore   Float            @default(0.0)
+  growthScore        Float            @default(0.0)
+  demandScore        Float            @default(0.0)
+  conversionEstimate Float            @default(0.0)
+  
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  lastScrapedAt      DateTime?
+
+  // Relations
+  listings           Listing[]
+  snapshots          ShopSnapshot[]
+  trackedBy          TrackedShop[]
+  categories         ShopCategory[]
+}
+
+model ShopSnapshot {
+  id             String   @id @default(uuid())
+  shopId         String
+  shop           Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  date           DateTime @default(now())
+  salesCount     Int
+  estimatedRevenue Float
+  reviewsCount   Int
+  favoritesCount Int
+  activeListingsCount Int
+
+  @@unique([shopId, date])
+  @@index([shopId, date])
+}
+
+model Listing {
+  id               String           @id // Etsy Listing ID
+  shopId           String
+  shop             Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  price            Float
+  currency         String           @default("USD")
+  url              String
+  imageUrl         String?
+  images           String[]         // Additional image URLs
+  isDigital        Boolean          @default(false)
+  isPhysical       Boolean          @default(true)
+  hasFreeShipping  Boolean          @default(false)
+  processingTimeMin Int?            // Min days to process
+  processingTimeMax Int?            // Max days to process
+  creationDate     DateTime?
+  status           String           @default("active") // active, inactive, sold_out
+  
+  // Analytics
+  salesCount       Int              @default(0)
+  estimatedRevenue Float            @default(0.0)
+  rating           Float            @default(0.0)
+  reviewsCount     Int              @default(0)
+  favoritesCount     Int              @default(0)
+  tags             String[]
+  materials        String[]
+  
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  lastScrapedAt    DateTime?
+
+  // Relations
+  snapshots        ListingSnapshot[]
+  categories       ListingCategory[]
+  trackedBy        TrackedListing[]
+}
+
+model ListingSnapshot {
+  id             String   @id @default(uuid())
+  listingId      String
+  listing        Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  date           DateTime @default(now())
+  price          Float
+  salesCount     Int
+  estimatedRevenue Float
+  favoritesCount Int
+  reviewsCount   Int
+
+  @@unique([listingId, date])
+  @@index([listingId, date])
+}
+
+model Category {
+  id        String            @id @default(uuid())
+  name      String            @unique
+  parentId  String?
+  parent    Category?         @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children  Category[]        @relation("CategoryHierarchy")
+  
+  shops     ShopCategory[]
+  listings  ListingCategory[]
+}
+
+model ShopCategory {
+  shopId     String
+  shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([shopId, categoryId])
+}
+
+model ListingCategory {
+  listingId  String
+  listing    Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([listingId, categoryId])
+}
+
+model Keyword {
+  id             String           @id @default(uuid())
+  phrase         String           @unique
+  searchVolume   Int              @default(0)
+  competition    Float            @default(0.0)
+  demandScore    Float            @default(0.0)
+  trendScore     Float            @default(0.0)
+  cpc            Float            @default(0.0)
+  lastUpdatedAt  DateTime         @default(now())
+  
+  // Relations
+  snapshots      KeywordSnapshot[]
+}
+
+model KeywordSnapshot {
+  id           String   @id @default(uuid())
+  keywordId    String
+  keyword      Keyword  @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  date         DateTime @default(now())
+  searchVolume Int
+
+  @@unique([keywordId, date])
+}
+
+model TrackedShop {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, shopId])
+}
+
+model TrackedListing {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, listingId])
+}
+
+model Alert {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       AlertType
+  targetId   String    // Shop ID or Listing ID
+  threshold  Float?
+  isTriggered Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  triggeredAt DateTime?
+}
+
+model SearchHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  query     String
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  type      String   // CSV, PDF, JSON
+  status    String   // PENDING, COMPLETED, FAILED
+  fileUrl   String?
+  createdAt DateTime @default(now())
+}
+
+model ScraperJob {
+  id          String    @id @default(uuid())
+  taskType    String    // SHOP_SCRAPE, LISTING_SCRAPE, KEYWORD_SCRAPE
+  targetId    String    // ID of the target resource
+  status      JobStatus @default(PENDING)
+  retries     Int       @default(0)
+  maxRetries  Int       @default(3)
+  errorMessage String?
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+}
