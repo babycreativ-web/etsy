@@ -13,6 +13,7 @@
     "lint": "turbo run lint"
   },
   "devDependencies": {
+    "next": "15.5.19",
     "turbo": "^2.0.0"
   }
 }
